@@ -1,0 +1,75 @@
+=== 626-1 ===
+invoice articles: 14
+  INV DESIGN
+  INV Melange 928
+  INV Noble 110
+  INV Noble 624
+  INV Omega 03
+  INV Omega 62
+  INV Solo 794
+  INV Solo 992
+  INV Danco 100
+  INV Danco 297
+  INV Oscar 978
+  INV Umbra 110
+  INV Lambre 402
+  INV Lambre 740
+spec aggregates: 13
+  SPEC Melange 928: rolls=8 m=302.9 m2=427.09 nw=209.0 gw=219.0
+  SPEC Noble 110: rolls=15 m=611.5 m2=868.33 nw=580.92 gw=597.27
+  SPEC Noble 624: rolls=12 m=507.0 m2=719.94 nw=481.65 gw=494.73
+  SPEC Omega 03: rolls=81 m=3712.9 m2=5346.58 nw=1559.42 gw=1640.4
+  SPEC Omega 62: rolls=35 m=1630.0 m2=2347.2 nw=684.6 gw=719.59
+  SPEC Solo 794: rolls=6 m=302.9 m2=448.29 nw=99.96 gw=106.64
+  SPEC Solo 992: rolls=7 m=344.1 m2=509.27 nw=113.55 gw=121.36
+  SPEC Danco 100: rolls=26 m=1268.5 m2=1801.27 nw=558.14 gw=584.25
+  SPEC Danco 297: rolls=11 m=535.7 m2=760.69 nw=235.71 gw=246.75
+  SPEC Oscar 978: rolls=7 m=308.8 m2=441.58 nw=197.63 gw=205.0
+  SPEC Umbra 110: rolls=28 m=1001.6 m2=1422.27 nw=480.77 gw=510.0
+  SPEC Lambre 402: rolls=10 m=423.2 m2=600.94 nw=304.7 gw=315.85
+  SPEC Lambre 740: rolls=17 m=722.5 m2=1025.95 nw=520.2 gw=539.15
+missing in spec: ['DESIGN']
+extra in spec: []
+PL file: 626-1-YS-RMB-EXW-PL.XLSX
+
+=== 626-2 ===
+invoice articles: 18
+  INV DESIGN
+  INV NAPPA 000
+  INV NAPPA 110
+  INV NAPPA 130
+  INV NAPPA 131
+  INV NAPPA 410
+  INV NAPPA 490
+  INV NAPPA 692
+  INV NAPPA 793
+  INV NAPPA 950
+  INV NAPPA 968
+  INV NAPPA 990
+  INV NAPPA 993
+  INV Magic 01
+  INV Magic 02
+  INV Magic 12
+  INV Magic 17
+  INV Magic 20
+spec aggregates: 17
+  SPEC NAPPA 000: rolls=23 m=1040.0 m2=1487.2 nw=702.0 gw=737.87
+  SPEC NAPPA 110: rolls=29 m=1122.8 m2=1605.6 nw=757.89 gw=803.12
+  SPEC NAPPA 130: rolls=34 m=1491.0 m2=2132.13 nw=1006.42 gw=1059.45
+  SPEC NAPPA 131: rolls=23 m=1029.0 m2=1471.47 nw=694.58 gw=730.45
+  SPEC NAPPA 410: rolls=34 m=1518.0 m2=2170.74 nw=1024.65 gw=1077.68
+  SPEC NAPPA 490: rolls=25 m=1021.0 m2=1460.03 nw=689.18 gw=728.17
+  SPEC NAPPA 692: rolls=13 m=499.0 m2=713.57 nw=336.82 gw=357.1
+  SPEC NAPPA 793: rolls=13 m=519.6 m2=743.03 nw=350.73 gw=371.01
+  SPEC NAPPA 950: rolls=16 m=630.0 m2=900.9 nw=425.25 gw=450.21
+  SPEC NAPPA 968: rolls=13 m=523.0 m2=747.89 nw=353.02 gw=373.3
+  SPEC NAPPA 990: rolls=24 m=985.3 m2=1408.98 nw=665.08 gw=702.51
+  SPEC NAPPA 993: rolls=23 m=1030.0 m2=1472.9 nw=695.25 gw=731.12
+  SPEC Magic 01: rolls=21 m=694.0 m2=985.48 nw=485.8 gw=506.92
+  SPEC Magic 02: rolls=15 m=501.0 m2=711.42 nw=350.7 gw=365.78
+  SPEC Magic 12: rolls=16 m=542.0 m2=769.64 nw=379.4 gw=395.49
+  SPEC Magic 17: rolls=19 m=631.0 m2=896.02 nw=441.7 gw=460.81
+  SPEC Magic 20: rolls=38 m=1301.0 m2=1847.42 nw=910.7 gw=949.0
+missing in spec: ['DESIGN']
+extra in spec: []
+PL file: 626-2-YS-RMB-EXW-PL.XLSX

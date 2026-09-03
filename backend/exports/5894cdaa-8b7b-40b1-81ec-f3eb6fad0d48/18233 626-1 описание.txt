@@ -1,0 +1,16 @@
+Description for 18233 sub-kit 626-1
+Header: {'buyer': "Buyer:“SM REGIONTEKSTIL'” LLC 143421, Moscow region, Krasnogorsk city, ter. Baltiya road, km 21, h. 2, str. 1, room 1 OGRN 1175024014472 TIN 5032281280 KPP 502401001", 'invoice_no': 'ZFRMB26148-626-1', 'contract_no': 'Contract No SM-LU2 dd 23/11/2018', 'date': 'Aug.19,2026'}
+
+Danco 100: None | None / None
+Danco 297: None | None / None
+Lambre 402: None | None / None
+Lambre 740: None | None / None
+Melange 928: None | None / None
+Noble 110: None | None / None
+Noble 624: None | None / None
+Omega 03: None | None / None
+Omega 62: None | None / None
+Oscar 978: None | None / None
+Solo 794: None | None / None
+Solo 992: None | None / None
+Umbra 110: None | None / None

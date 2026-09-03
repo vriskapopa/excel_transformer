@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Обработка документов · таможня</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/styles.css?v=5" />
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <div>
+        <p class="brand">Таможенные документы</p>
+        <h1>Рабочее место оператора</h1>
+      </div>
+      <div class="legend">
+        <span class="pill red">Расхождение</span>
+        <span class="pill yellow">Пропуск / нет пары</span>
+        <span class="pill orange">Низкий OCR</span>
+        <span class="pill blue">Несколько РД</span>
+      </div>
+    </header>
+
+    <section class="panel upload-panel" id="upload-panel">
+      <h2>Новая поставка</h2>
+      <p class="hint">Для 18233 достаточно загрузить <b>инвойс</b> <code>…INVOICE.XLSX</code> — PL и Specification подставятся сами из материалов комплекта. Можно также загрузить все 3 файла из «01_Исходники». Поддерживаются <b>PDF</b> и сканы (.png, .jpg) — текст и таблицы распознаются автоматически. Не загружайте файлы из «02_Готовые».</p>
+      <form id="create-form" class="form-grid">
+        <label>Название поставки
+          <input name="title" required placeholder="18233" value="18233" />
+        </label>
+        <label>Профиль экспорта
+          <select name="profile_type">
+            <option value="18233" selected>18233 — инвойс + пакинг</option>
+            <option value="BEIJING">BEIJING — один Excel, 4 листа</option>
+          </select>
+        </label>
+        <label class="dropzone" id="dropzone">
+          <input type="file" name="files" id="files" multiple accept=".xlsx,.xls,.pdf,.png,.jpg,.jpeg" />
+          <span>Перетащите Excel, PDF или сканы сюда — или нажмите для выбора</span>
+          <ul id="file-list"></ul>
+        </label>
+        <p id="kit-check" class="status"></p>
+        <div class="form-actions">
+          <button type="submit" class="btn primary">Обработать комплект</button>
+        </div>
+      </form>
+      <p id="upload-status" class="status"></p>
+    </section>
+
+    <section class="panel workspace hidden" id="workspace">
+      <div class="workspace-head">
+        <div>
+          <h2 id="ws-title">—</h2>
+          <p id="ws-meta" class="hint"></p>
+        </div>
+        <div class="actions export-actions">
+          <button type="button" class="btn" id="btn-permits">РД по позиции</button>
+          <button type="button" class="btn primary" id="btn-export">Сформировать Excel</button>
+          <div id="export-result" class="status export-status" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <div class="files-badges" id="files-badges"></div>
+
+      <details class="header-panel">
+        <summary>Шапка спецификации</summary>
+        <form id="header-form" class="header-form">
+          <label>Покупатель <input name="buyer" /></label>
+          <label>Продавец <input name="seller" /></label>
+          <label>№ контракта <input name="contract_no" /></label>
+          <label>Дата контракта <input name="contract_date" /></label>
+          <label>№ инвойса <input name="invoice_no" /></label>
+          <label>Дата инвойса <input name="invoice_date" /></label>
+          <label>Условия поставки <input name="delivery_terms" /></label>
+          <label>Условия оплаты <input name="payment_terms" /></label>
+          <label>Производитель <input name="manufacturer" /></label>
+          <label>Срок поставки <input name="delivery_date" /></label>
+          <label>Адрес склада <input name="warehouse_address" /></label>
+          <button type="submit" class="btn compact-btn">Сохранить</button>
+        </form>
+      </details>
+
+      <div class="table-wrap">
+        <table id="items-table">
+          <thead>
+            <tr>
+              <th class="row-no">№</th>
+              <th>Артикул</th>
+              <th class="num">Рулоны</th>
+              <th class="num">Метры</th>
+              <th class="num">Ширина</th>
+              <th class="num">м²</th>
+              <th class="num">Нетто</th>
+              <th class="num">Брутто</th>
+              <th class="money">Цена</th>
+              <th class="money">Сумма</th>
+              <th>HS</th>
+              <th>ТН ВЭД</th>
+              <th>Описание</th>
+              <th>Флаги</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <footer class="table-foot" id="table-foot" aria-label="Подсказка по работе с таблицей">
+        <p class="table-foot-main"><b>Клик по строке</b> — правка. Исправляйте здесь, не в Excel. Шапка — блок выше.</p>
+        <p class="table-foot-flags">
+          <span class="flag-pill flag-pill-RED">Расхождение</span> сверьте и сохраните верное значение
+          <span class="sep">·</span>
+          <span class="flag-pill flag-pill-YELLOW">Пропуск</span> заполните вручную
+          <span class="sep">·</span>
+          <span class="flag-pill flag-pill-ORANGE">OCR</span> проверьте скан
+          <span class="sep">·</span>
+          <span class="flag-pill flag-pill-BLUE">РД</span> кнопка «РД по позиции»
+        </p>
+        <p class="table-foot-export">Когда замечаний нет — <b>Сформировать Excel</b>.</p>
+      </footer>
+
+    </section>
+  </div>
+
+  <dialog id="edit-dialog">
+    <form id="edit-form" class="dialog-form">
+      <h3>Правка позиции</h3>
+      <input type="hidden" name="item_id" id="edit-item-id" />
+      <label>Артикул <input name="article" id="edit-article" /></label>
+      <label>Метры <input name="qty" id="edit-qty" inputmode="decimal" /></label>
+      <label>Цена <input name="price" id="edit-price" inputmode="decimal" /></label>
+      <label>Сумма <input name="amount" id="edit-amount" inputmode="decimal" /></label>
+      <label>Нетто, кг <input name="net_weight" id="edit-net-weight" inputmode="decimal" /></label>
+      <label>Брутто, кг <input name="gross_weight" id="edit-gross-weight" inputmode="decimal" /></label>
+      <label>ТН ВЭД <input name="tnved_code" id="edit-tnved" /></label>
+      <label>Описание <input name="description_en" id="edit-desc-en" /></label>
+      <label>Описание (RU) <input name="description_ru" id="edit-desc-ru" /></label>
+      <p id="edit-status" class="status" aria-live="polite"></p>
+      <div class="actions">
+        <button type="button" id="edit-cancel" class="btn">Отмена</button>
+        <button type="submit" id="edit-save" class="btn primary">Сохранить</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="permit-dialog">
+    <div class="dialog-form">
+      <h3>Разрешительные документы (3 базы отдельно)</h3>
+      <pre id="permit-body"></pre>
+      <button class="btn" id="permit-close">Закрыть</button>
+    </div>
+  </dialog>
+
+  <script src="/assets/app.js?v=4"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+generic lines=264 empty=264
+keys=['roll no.', 'date', 'product name', 'lot no.', 'unit price¥', 'meters', 'width', 'm2', 'n.w', 'g.w', 'description', 'column']
+raw0={'roll no.': 'HF260730094EN928023', 'date': datetime.datetime(2026, 7, 30, 0, 0), 'product name': 'Melange 928', 'lot no.': '(0504-2704)', 'unit price¥': 22.5, 'meters': 21.7, 'width': 1.41, 'm2': 30.596999999999998, 'n.w': 14.973, 'g.w': 16.223, 'description': None, 'column': None}
+read_excel lines=264
+keys2=['roll no.', 'date', 'product name', 'lot no.', 'unit price¥', 'meters', 'width', 'm2', 'n.w', 'g.w', 'description', 'column']
+line0={'row_index': 7, 'sheet_name': 'Sheet1', 'article': None, 'model': None, 'normalized_article': '', 'raw': {'roll no.': 'HF260730094EN928023', 'date': datetime.datetime(2026, 7, 30, 0, 0), 'product name': 'Melange 928', 'lot no.': '(0504-2704)', 'unit price¥': 22.5, 'meters': 21.7, 'width': 1.41, 'm2': 30.596999999999998, 'n.w': 14.973, 'g.w': 16.223, 'description': None, 'column': None}}
+18233 items=13 arts=['Melange 928', 'Noble 110', 'Noble 624', 'Omega 03', 'Omega 62', 'Solo 794', 'Solo 992', 'Danco 100', 'Danco 297', 'Oscar 978', 'Umbra 110', 'Lambre 402', 'Lambre 740']
+folder files=['626-1-YS-RMB-EXW-INVOICE.XLSX', '626-1-YS-RMB-EXW-PL.XLSX', '626-1-YS-RMB-EXW-Specification.xls', '626-1-YS-RMB-EXW-INVOICE.XLSX', '626-1-YS-RMB-EXW-PL.XLSX']
+full kit items=13 empty=0
