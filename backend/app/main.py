@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes.shipments import router as shipments_router
@@ -27,6 +27,15 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(shipments_router)
+
+    @app.exception_handler(Exception)
+    async def _unhandled(_request: Request, exc: Exception) -> JSONResponse:
+        if isinstance(exc, HTTPException):
+            return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Ошибка обработки: {exc}"},
+        )
 
     @app.on_event("startup")
     def _startup() -> None:

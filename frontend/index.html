@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/assets/styles.css?v=5" />
+  <link rel="stylesheet" href="/assets/styles.css?v=10" />
 </head>
 <body>
   <div class="app">
@@ -26,7 +26,7 @@
 
     <section class="panel upload-panel" id="upload-panel">
       <h2>Новая поставка</h2>
-      <p class="hint">Для 18233 достаточно загрузить <b>инвойс</b> <code>…INVOICE.XLSX</code> — PL и Specification подставятся сами из материалов комплекта. Можно также загрузить все 3 файла из «01_Исходники». Поддерживаются <b>PDF</b> и сканы (.png, .jpg) — текст и таблицы распознаются автоматически. Не загружайте файлы из «02_Готовые».</p>
+      <p class="hint">Киньте Excel и PDF вместе — таблица строится заново по этим файлам, старая поставка не подмешивается. Tosun (инвойс + спецификация + пакинг) даёт 6 позиций: SINDRI 162 и пять ZIMMY.</p>
       <form id="create-form" class="form-grid">
         <label>Название поставки
           <input name="title" required placeholder="18233" value="18233" />
@@ -38,7 +38,7 @@
           </select>
         </label>
         <label class="dropzone" id="dropzone">
-          <input type="file" name="files" id="files" multiple accept=".xlsx,.xls,.pdf,.png,.jpg,.jpeg" />
+          <input type="file" name="files" id="files" multiple accept=".xlsx,.xls,.xlsm,.pdf,.png,.jpg,.jpeg" />
           <span>Перетащите Excel, PDF или сканы сюда — или нажмите для выбора</span>
           <ul id="file-list"></ul>
         </label>
@@ -152,6 +152,6 @@
     </div>
   </dialog>
 
-  <script src="/assets/app.js?v=4"></script>
+  <script src="/assets/app.js?v=11"></script>
 </body>
 </html>

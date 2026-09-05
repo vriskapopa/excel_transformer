@@ -187,18 +187,55 @@ input, select, button, textarea {
 #items-table th.num {
   text-align: right;
   font-variant-numeric: tabular-nums;
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 12.5px;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  white-space: nowrap;
+}
+#items-table th.num {
+  width: 64px;
+  padding: 11px 6px;
+}
+#items-table td.num {
+  width: 64px;
+  max-width: 72px;
+  padding: 8px 6px;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--ink);
+  background: #fff !important;
+}
+#items-table tbody tr:nth-child(even) td.num,
+#items-table tbody tr:hover td.num {
+  background: #fff !important;
+}
+#items-table td.code {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: #1e293b;
 }
 #items-table td.article {
   font-weight: 600;
   color: #0f2a3a;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 220px;
+  min-width: 110px;
+  line-height: 1.3;
 }
 #items-table td.desc {
-  max-width: 220px;
+  max-width: 260px;
+  min-width: 140px;
   color: #334155;
   font-size: 12.5px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.35;
 }
 #items-table th.money,
 #items-table td.money {
@@ -207,8 +244,13 @@ input, select, button, textarea {
   font-weight: 700;
   text-align: right;
   font-variant-numeric: tabular-nums;
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 13px;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 15.5px;
+  letter-spacing: 0.02em;
+  padding-left: 14px;
+  padding-right: 14px;
+  white-space: nowrap;
   border-left: 1px solid #f0d48a;
   border-right: 1px solid #f0d48a;
 }

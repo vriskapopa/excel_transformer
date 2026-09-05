@@ -107,8 +107,42 @@ def detect_subkit(paths: list[str | Path]) -> str | None:
     return match.group(1) if match else None
 
 
+def _iter_excel_sheets(path: str | Path) -> list[tuple[str, pd.DataFrame]]:
+    book = pd.read_excel(path, sheet_name=None, header=None, dtype=object)
+    if isinstance(book, dict):
+        return [(str(name), frame) for name, frame in book.items()]
+    return [("Sheet1", book)]
+
+
+def _merge_unique(primary: list[dict[str, Any]], extra: list[dict[str, Any]], key: str) -> list[dict[str, Any]]:
+    have = {row.get(key) for row in primary if row.get(key)}
+    out = list(primary)
+    for row in extra:
+        item_key = row.get(key)
+        if not item_key or item_key in have:
+            continue
+        out.append(row)
+        have.add(item_key)
+    return out
+
+
 def parse_invoice(path: str | Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    df = pd.read_excel(path, header=None, dtype=object)
+    best: list[dict[str, Any]] = []
+    hints: dict[str, Any] = {}
+    extras: list[dict[str, Any]] = []
+    for _name, df in _iter_excel_sheets(path):
+        products, sheet_hints = _parse_invoice_sheet(df)
+        if len(products) > len(best):
+            extras.extend(best)
+            best, hints = products, sheet_hints
+        else:
+            extras.extend(products)
+            if not hints:
+                hints = sheet_hints
+    return _merge_unique(best, extras, "normalized_article"), hints
+
+
+def _parse_invoice_sheet(df: pd.DataFrame) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     header = _find_header_row(df, ("NO.", "DESIGN", "ROLLS", "METERS"))
     if header is None:
         header = 8
@@ -188,7 +222,19 @@ def parse_invoice(path: str | Path) -> tuple[list[dict[str, Any]], dict[str, Any
 
 
 def parse_packing_list(path: str | Path) -> list[dict[str, Any]]:
-    df = pd.read_excel(path, header=None, dtype=object)
+    best: list[dict[str, Any]] = []
+    extras: list[dict[str, Any]] = []
+    for _name, df in _iter_excel_sheets(path):
+        groups = _parse_packing_sheet(df)
+        if len(groups) > len(best):
+            extras.extend(best)
+            best = groups
+        else:
+            extras.extend(groups)
+    return _merge_unique(best, extras, "normalized_family")
+
+
+def _parse_packing_sheet(df: pd.DataFrame) -> list[dict[str, Any]]:
     header = _find_header_row(df, ("DESIGN", "ROLLS", "NET", "GROSS"))
     if header is None:
         header = 8
@@ -217,9 +263,17 @@ def parse_packing_list(path: str | Path) -> list[dict[str, Any]]:
     return groups
 
 
-def parse_specification(path: str | Path) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
-    df = pd.read_excel(path, header=None, dtype=object)
+def _looks_aggregated(rows: list[dict[str, Any]]) -> bool:
+    if len(rows) < 2:
+        return True
+    keys = [row.get("normalized_article") for row in rows]
+    return len(set(keys)) == len(keys)
+
+
+def _parse_specification_sheet(df: pd.DataFrame) -> list[dict[str, Any]]:
     header = _find_header_row(df, ("ROLL", "PRODUCT", "METERS", "WIDTH"))
+    if header is None:
+        header = _find_header_row(df, ("ART", "PRODUCT", "METERS", "CUSTOMS"))
     if header is None:
         header = 6
     rolls: list[dict[str, Any]] = []
@@ -245,12 +299,27 @@ def parse_specification(path: str | Path) -> tuple[list[dict[str, Any]], dict[st
             "gross_weight": _num(_cell(df, r, 9)),
             "description": _text(_cell(df, r, 10)) or None,
         }
-        # area may be calculated: meters * width
         if roll["area"] is None and roll["meters"] is not None and roll["width"] is not None:
             roll["area"] = round(float(roll["meters"]) * float(roll["width"]), 3)
             roll["area_calculated"] = True
         rolls.append(roll)
+    return rolls
 
+
+def parse_specification(path: str | Path) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
+    best: list[dict[str, Any]] = []
+    extras: list[dict[str, Any]] = []
+    for _name, df in _iter_excel_sheets(path):
+        rolls = _parse_specification_sheet(df)
+        if len(rolls) > len(best):
+            extras.extend(best)
+            best = rolls
+        else:
+            extras.extend(rolls)
+    rolls = _merge_unique(best, extras, "normalized_article") if _looks_aggregated(best) else best
+    # Roll-level spec: keep the richest sheet only so meters are not doubled
+    if not _looks_aggregated(best):
+        rolls = best
     aggregates: dict[str, dict[str, Any]] = {}
     for roll in rolls:
         key = roll["normalized_article"]

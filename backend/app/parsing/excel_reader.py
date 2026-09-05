@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import re
 from typing import Any, Iterable
 
 import pandas as pd
 
-from app.parsing.normalize import normalize_article, normalize_text
+from app.parsing.normalize import normalize_text
+from app.parsing.table_rows import lines_from_matrix
 
 ARTICLE_HEADERS = (
+    "articule",
+    "articul",
     "article",
     "art.",
     "art",
@@ -72,34 +76,40 @@ def _unique_columns(headers: Iterable[Any]) -> list[str]:
     return result
 
 
+def _article_rank(key: str) -> int | None:
+    lowered = key.lower()
+    if "price" in lowered or "cart" in lowered:
+        return None
+    if "артикул" in lowered or "articul" in lowered:
+        return 0
+    if re.search(r"(^|[^a-zа-я])article([^a-zа-я]|$)", lowered) and "name" not in lowered:
+        return 1
+    if any(token in lowered for token in ("sku", "item no", "style")) or lowered.strip() in {
+        "art",
+        "art.",
+        "арт",
+    }:
+        return 2
+    if "design" in lowered or "дизайн" in lowered:
+        return 3
+    if "product name" in lowered or "наименование" in lowered or lowered.strip() == "product":
+        return 5
+    return None
+
+
 def _pick_article(row: dict[str, Any]) -> tuple[str | None, str | None]:
     article = None
+    article_rank = 99
     model = None
     for key, value in row.items():
         text = _cell_str(value)
         if not text:
             continue
         lowered = key.lower()
-        # Prefer explicit article / design / product name (Zhongfang Spec uses PRODUCT NAME)
-        if any(
-            token in lowered
-            for token in (
-                "артикул",
-                "article",
-                "design",
-                "дизайн",
-                "product name",
-                "наименование",
-                "sku",
-                "item no",
-                "style",
-            )
-        ) or lowered.strip() in {"art", "art.", "арт", "product"}:
-            # Avoid matching "unit price" / "cartons" via bare "art"
-            if "price" in lowered or "cart" in lowered:
-                continue
-            if article is None:
-                article = text
+        rank = _article_rank(key)
+        if rank is not None and rank < article_rank:
+            article = text
+            article_rank = rank
         if "model" in lowered or "модель" in lowered:
             if model is None:
                 model = text
@@ -116,37 +126,8 @@ def dataframe_to_lines(
 ) -> list[dict[str, Any]]:
     if frame.empty:
         return []
-
     raw_rows = frame.where(pd.notna(frame), None).values.tolist()
-    if header_row is None:
-        header_row = detect_header_row(raw_rows)
-    if header_row is None:
-        columns = [f"column_{i+1}" for i in range(frame.shape[1])]
-        body = raw_rows
-        start_index = 0
-    else:
-        columns = _unique_columns(raw_rows[header_row])
-        body = raw_rows[header_row + 1 :]
-        start_index = header_row + 1
-
-    lines: list[dict[str, Any]] = []
-    for offset, values in enumerate(body):
-        if all(v is None or _cell_str(v) == "" for v in values):
-            continue
-        raw = {columns[i]: values[i] if i < len(values) else None for i in range(len(columns))}
-        article, model = _pick_article(raw)
-        key_source = article or model
-        lines.append(
-            {
-                "row_index": start_index + offset,
-                "sheet_name": sheet_name,
-                "article": article,
-                "model": model,
-                "normalized_article": normalize_article(key_source),
-                "raw": raw,
-            }
-        )
-    return lines
+    return lines_from_matrix(raw_rows, sheet_name=sheet_name, header_row=header_row)
 
 
 def read_excel(path: str) -> tuple[list[str], list[dict[str, Any]], str]:

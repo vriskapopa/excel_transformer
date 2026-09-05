@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.models.enums import DocType, ErrorSeverity, ErrorType
+from app.parsing.table_rows import is_usable_row
 from app.parsing.normalize import normalize_article
 from app.parsing.schemas import ParsedDocument, ParsedLine
 from app.services.catalog import CatalogIndex
@@ -317,13 +318,38 @@ def apply_catalog(items: list[ReconciledItem], catalog: CatalogIndex | None) -> 
             )
 
 
+def _drop_prefix_duplicates(items: list[ReconciledItem]) -> list[ReconciledItem]:
+    """If both ZIMMY and ZIMMY 162 exist, keep the detailed codes.
+
+    Keep a short packing-only parent (Noble) so weights can still be split.
+    """
+    by_key = {item.normalized_article: item for item in items}
+    keys = list(by_key)
+    drop: set[str] = set()
+    for key in keys:
+        children = [
+            other
+            for other in keys
+            if other != key and other.startswith(key) and other[len(key) :].isdigit()
+        ]
+        if not children:
+            continue
+        parent = by_key[key]
+        if "packing_list" in parent.source_traces and "invoice" not in parent.source_traces:
+            continue
+        drop.add(key)
+    if not drop:
+        return items
+    return [item for item in items if item.normalized_article not in drop]
+
+
 def reconcile_documents(
     documents: list[ParsedDocument],
     *,
     catalog: CatalogIndex | None = None,
 ) -> list[ReconciledItem]:
     items_by_key: dict[str, ReconciledItem] = {}
-    orphan_flags: list[ReconciledItem] = []
+    orphan_flags: list[ReconciledItem] = []  # unused; junk rows are dropped earlier
     present_buckets: set[str] = set()
 
     for doc in documents:
@@ -346,22 +372,8 @@ def reconcile_documents(
                 mapped.get("article") or mapped.get("model") or line.article or line.model
             )
             if not key:
-                orphan = ReconciledItem(
-                    article=line.article,
-                    model=line.model,
-                    normalized_article="",
-                    source_traces={bucket or "unknown": mapped},
-                )
-                orphan.flags.append(
-                    ValidationFlag(
-                        field_name="article",
-                        error_type=ErrorType.MISSING_PAIR,
-                        severity=ErrorSeverity.YELLOW,
-                        details={"filename": doc.filename, "row_index": line.row_index},
-                        message="Строка без артикула — не присоединяется к соседней позиции",
-                    )
-                )
-                orphan_flags.append(orphan)
+                continue
+            if not is_usable_row(line.article or mapped.get("article") or key, mapped):
                 continue
 
             item = items_by_key.get(key)
@@ -376,8 +388,7 @@ def reconcile_documents(
             elif item.invoice_subkit is None and subkit:
                 item.invoice_subkit = subkit
 
-            if bucket:
-                _apply_mapped(item, mapped, source=bucket)
+            _apply_mapped(item, mapped, source=bucket or "invoice")
             if subkit:
                 item.commercial_data["invoice_subkit"] = subkit
             if low_ocr:
@@ -405,6 +416,7 @@ def reconcile_documents(
                 )
 
     items = list(items_by_key.values())
+    items = _drop_prefix_duplicates(items)
     distribute_packing_aggregates(items)
     apply_catalog(items, catalog)
 
@@ -422,7 +434,7 @@ def reconcile_documents(
             unique_flags.append(flag)
         item.flags = unique_flags
 
-    return items + orphan_flags
+    return items
 
 
 def items_to_dicts(items: list[ReconciledItem]) -> list[dict[str, Any]]:

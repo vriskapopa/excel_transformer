@@ -137,9 +137,8 @@ def test_row_without_article_not_merged() -> None:
         ],
     )
     items = reconcile_documents([invoice])
-    assert any(i.normalized_article == "" for i in items)
-    orphan = next(i for i in items if i.normalized_article == "")
-    assert any(f.error_type == ErrorType.MISSING_PAIR for f in orphan.flags)
+    assert [i.normalized_article for i in items] == ["A1"]
+    assert all(i.normalized_article for i in items)
 
 
 def test_packing_aggregate_distribution() -> None:

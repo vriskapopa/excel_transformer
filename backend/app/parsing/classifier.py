@@ -108,6 +108,13 @@ def classify_document(
     hits: list[str] = []
 
     stem = tokens_for_search(Path(filename).stem)
+    stem_raw = Path(filename).stem.lower()
+    if stem_raw.endswith(("_ci", "-ci")) or stem_raw.endswith(" ci"):
+        scores[DocType.INVOICE] += 3.0
+        hits.append("filename:_ci->INVOICE")
+    if stem_raw.endswith(("_pl", "-pl")) or stem_raw.endswith(" pl"):
+        scores[DocType.PACKING_LIST] += 3.0
+        hits.append("filename:_pl->PACKING_LIST")
     for doc_type, hints in _FILENAME_HINTS.items():
         for hint in hints:
             if hint in stem:

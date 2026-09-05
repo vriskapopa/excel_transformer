@@ -24,22 +24,36 @@ const $ = (sel) => document.querySelector(sel);
 
 function classifyUploadName(filename) {
   const name = String(filename || "").toUpperCase();
-  if (name.endsWith(".PDF")) return "pdf";
-  if (/\.(PNG|JPE?G|TIF{1,2}|BMP|WEBP)$/.test(name)) return "scan";
-  if (name.includes("INVOICE") || name.includes("ИНВОЙС")) return "invoice";
-  if (name.includes("-PL") || name.includes("PACKING") || name.endsWith("PL.XLSX") || name.includes("ПАКИНГ")) {
+  const stem = name.replace(/\.[^.]+$/, "");
+  if (name.includes("INVOICE") || name.includes("ИНВОЙС") || stem.endsWith("_CI") || stem.endsWith("-CI")) {
+    return "invoice";
+  }
+  if (
+    name.includes("-PL") ||
+    stem.endsWith("_PL") ||
+    name.includes("PACKING") ||
+    name.endsWith("PL.XLSX") ||
+    name.endsWith("PL.PDF") ||
+    name.includes("ПАКИНГ")
+  ) {
     return "packing";
   }
   if (name.includes("SPEC") || name.includes("СПЕЦИФ")) return "specification";
+  if (name.endsWith(".PDF")) return "pdf";
+  if (/\.(PNG|JPE?G|TIF{1,2}|BMP|WEBP)$/.test(name)) return "scan";
   return null;
 }
+
+let syncingInput = false;
 
 function syncFileInput() {
   const input = $("#files");
   const list = $("#file-list");
   const dt = new DataTransfer();
   state.pendingFiles.forEach((f) => dt.items.add(f));
+  syncingInput = true;
   input.files = dt.files;
+  syncingInput = false;
   list.innerHTML = "";
   const roleRu = {
     invoice: "инвойс",
@@ -56,6 +70,12 @@ function syncFileInput() {
     li.textContent = role ? `${f.name} → ${roleRu[role]}` : `${f.name} → ?`;
     list.appendChild(li);
   });
+  const submitBtn = $("#create-form button[type='submit']");
+  if (submitBtn) {
+    submitBtn.textContent = state.pendingFiles.length
+      ? `Обработать ${fileCountLabel(state.pendingFiles.length)}`
+      : "Обработать комплект";
+  }
   const missing = ["invoice", "packing", "specification"].filter((r) => !found.has(r));
   const hint = $("#kit-check");
   if (!hint) return;
@@ -65,7 +85,7 @@ function syncFileInput() {
   }
   if (missing.length) {
     hint.textContent =
-      `Можно добавить ещё: ${missing.map((m) => roleRu[m]).join(", ")}. Если есть только инвойс 626-x — сервис сам подставит PL и Specification из материалов.`;
+      "Можно добавить инвойс, упаковочный или спецификацию — либо сразу обработать выбранные Excel/PDF.";
     hint.className = "status kit-warn";
   } else {
     hint.textContent = "Комплект полный: инвойс + упаковочный + спецификация.";
@@ -73,14 +93,60 @@ function syncFileInput() {
   }
 }
 
+function fileCountLabel(n) {
+  const n10 = n % 10;
+  const n100 = n % 100;
+  if (n10 === 1 && n100 !== 11) return `${n} файл`;
+  if (n10 >= 2 && n10 <= 4 && (n100 < 12 || n100 > 14)) return `${n} файла`;
+  return `${n} файлов`;
+}
+
+function suggestTitleFromFiles() {
+  const titleInput = document.querySelector('#create-form [name="title"]');
+  if (!titleInput) return;
+  const blob = state.pendingFiles.map((f) => f.name).join(" ");
+  const hit = blob.match(/\b(18\d{3})\b/);
+  if (hit && (!titleInput.value.trim() || titleInput.value.trim() === "18233")) {
+    titleInput.value = hit[1];
+  }
+}
+
+function hideOldWorkspace() {
+  state.shipmentId = null;
+  state.workspace = null;
+  state.selectedItemId = null;
+  sessionStorage.removeItem("shipmentId");
+  $("#workspace")?.classList.add("hidden");
+  const tbody = $("#items-table tbody");
+  if (tbody) tbody.innerHTML = "";
+}
+
 function addPendingFiles(fileList) {
+  const incoming = [...(fileList || [])].filter((f) => f && f.size && /\.(xlsx|xls|xlsm|pdf|png|jpe?g)$/i.test(f.name));
+  if (!incoming.length) return;
   const byName = new Map(state.pendingFiles.map((f) => [f.name, f]));
-  [...fileList].forEach((f) => byName.set(f.name, f));
+  incoming.forEach((f) => byName.set(f.name, f));
   state.pendingFiles = [...byName.values()];
+  hideOldWorkspace();
+  suggestTitleFromFiles();
   syncFileInput();
+  scheduleAutoProcess(incoming.length);
+}
+
+let autoProcessTimer = null;
+let processing = false;
+
+function scheduleAutoProcess(justAdded) {
+  if (autoProcessTimer) clearTimeout(autoProcessTimer);
+  const delay = state.pendingFiles.length >= 2 || justAdded >= 2 ? 350 : 1100;
+  $("#upload-status").textContent = `Выбрано ${fileCountLabel(state.pendingFiles.length)}. Обрабатываю…`;
+  autoProcessTimer = setTimeout(() => {
+    processShipment();
+  }, delay);
 }
 
 $("#files").addEventListener("change", (e) => {
+  if (syncingInput) return;
   addPendingFiles(e.target.files);
 });
 
@@ -101,27 +167,39 @@ dropzone.addEventListener("drop", (e) => {
   if (e.dataTransfer?.files?.length) addPendingFiles(e.dataTransfer.files);
 });
 
-$("#create-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const form = e.target;
+async function processShipment() {
+  if (processing) return;
   if (!state.pendingFiles.length) {
     $("#upload-status").textContent = "Выберите файлы комплекта.";
     return;
   }
+  processing = true;
+  if (autoProcessTimer) {
+    clearTimeout(autoProcessTimer);
+    autoProcessTimer = null;
+  }
+  const form = $("#create-form");
   const fd = new FormData();
   fd.append("title", form.title.value);
   fd.append("profile_type", form.profile_type.value);
   state.pendingFiles.forEach((f) => fd.append("files", f));
-  $("#upload-status").textContent = "Обработка…";
+  $("#upload-status").textContent = `Обработка ${fileCountLabel(state.pendingFiles.length)}…`;
   try {
     const created = await api("/api/v1/shipments/", { method: "POST", body: fd });
     state.shipmentId = created.id;
     $("#upload-status").textContent =
-      `Готово: ${created.item_count} позиций, предупреждений: ${created.warning_count}`;
+      `Готово: ${created.item_count} позиций из ${created.files?.length || state.pendingFiles.length} файлов, предупреждений: ${created.warning_count}`;
     await loadWorkspace(created.id);
   } catch (err) {
     $("#upload-status").textContent = `Ошибка: ${err.message}`;
+  } finally {
+    processing = false;
   }
+}
+
+$("#create-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  await processShipment();
 });
 
 function escapeHtml(value) {
@@ -144,10 +222,12 @@ function formatNum(value, digits = 2) {
   if (value === null || value === undefined || value === "") return "—";
   const n = Number(value);
   if (!Number.isFinite(n)) return escapeHtml(value);
+  const whole = Number.isInteger(n) || Math.abs(n - Math.round(n)) < 1e-9;
   return n.toLocaleString("ru-RU", {
-    minimumFractionDigits: Number.isInteger(n) ? 0 : Math.min(digits, 2),
+    useGrouping: true,
+    minimumFractionDigits: whole && digits === 0 ? 0 : whole ? 0 : Math.min(2, digits),
     maximumFractionDigits: digits,
-  });
+  }).replace(/\s/g, "\u00a0");
 }
 
 function formatMoney(value) {
@@ -155,9 +235,10 @@ function formatMoney(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return escapeHtml(value);
   return n.toLocaleString("ru-RU", {
+    useGrouping: true,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  });
+  }).replace(/\s/g, "\u00a0");
 }
 
 const SEVERITY_RU = {
@@ -307,9 +388,9 @@ async function loadWorkspace(id) {
       <td class="num ${fieldSeverity(errs, "gross_weight")}">${formatNum(p.gross_weight)}</td>
       <td class="money ${fieldSeverity(errs, "price")}">${formatMoney(c.price)}</td>
       <td class="money ${fieldSeverity(errs, "amount")}">${formatMoney(c.amount)}</td>
-      <td class="${fieldSeverity(errs, "hs_code")}">${escapeHtml(u.hs_code || "—")}</td>
-      <td class="${fieldSeverity(errs, "tnved_code")}">${escapeHtml(u.tnved_code || "—")}</td>
-      <td class="desc" title="${descSafe}">${descSafe.slice(0, 60)}${descSafe.length > 60 ? "…" : ""}</td>
+      <td class="code ${fieldSeverity(errs, "hs_code")}">${escapeHtml(u.hs_code || "—")}</td>
+      <td class="code ${fieldSeverity(errs, "tnved_code")}">${escapeHtml(u.tnved_code || "—")}</td>
+      <td class="desc" title="${descSafe}">${descSafe}</td>
       <td class="flags-cell">${renderFlags(errs)}</td>
     `;
     tbody.appendChild(tr);
@@ -504,7 +585,4 @@ $("#btn-permits").addEventListener("click", async () => {
 
 $("#permit-close").addEventListener("click", () => $("#permit-dialog").close());
 
-const savedShipmentId = sessionStorage.getItem("shipmentId");
-if (savedShipmentId) {
-  loadWorkspace(savedShipmentId).catch(() => sessionStorage.removeItem("shipmentId"));
-}
+sessionStorage.removeItem("shipmentId");

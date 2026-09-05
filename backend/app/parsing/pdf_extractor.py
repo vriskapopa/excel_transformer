@@ -3,21 +3,39 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from app.parsing.normalize import normalize_article, normalize_text
+from app.parsing.normalize import normalize_text
 from app.parsing.ocr import ocr_image, ocr_pdf_pages
+from app.parsing.table_rows import lines_from_matrix, lines_from_plaintext, lines_from_qty_price_text
 
 MIN_SEARCHABLE_CHARS = 40
 
 
-def _extract_searchable_pdf(path: str) -> tuple[str, list[dict[str, Any]], list[str]]:
+def _extract_with_pypdf(path: str) -> tuple[str, list[str]]:
     try:
-        import pdfplumber
-    except ImportError as exc:
-        raise RuntimeError("pdfplumber is required to read PDF files") from exc
+        from pypdf import PdfReader
+    except ImportError:
+        return "", ["pdf_reader_unavailable"]
+    try:
+        reader = PdfReader(path)
+        parts = [(page.extract_text() or "") for page in reader.pages]
+        return "\n".join(parts), []
+    except Exception as exc:
+        return "", [f"pypdf_failed:{exc}"]
 
+
+def _extract_searchable_pdf(path: str) -> tuple[str, list[dict[str, Any]], list[str]]:
     text_parts: list[str] = []
     lines: list[dict[str, Any]] = []
     warnings: list[str] = []
+    try:
+        import pdfplumber
+    except ImportError:
+        text, extra = _extract_with_pypdf(path)
+        warnings.extend(extra or ["pdfplumber_missing_used_pypdf"])
+        if not text.strip():
+            warnings.append("pdf_has_no_text_layer")
+        return text, lines, warnings
+
     with pdfplumber.open(path) as pdf:
         for page_idx, page in enumerate(pdf.pages):
             page_text = page.extract_text() or ""
@@ -26,46 +44,34 @@ def _extract_searchable_pdf(path: str) -> tuple[str, list[dict[str, Any]], list[
             for table_idx, table in enumerate(tables):
                 if not table:
                     continue
-                headers = [normalize_text(cell or "") for cell in table[0]]
-                for row_idx, row in enumerate(table[1:], start=1):
-                    raw = {
-                        (headers[i] or f"column_{i+1}"): (row[i] if i < len(row) else None)
-                        for i in range(len(headers) or len(row))
-                    }
-                    article = None
-                    model = None
-                    for key, value in raw.items():
-                        lowered = key.lower()
-                        text = normalize_text(str(value) if value is not None else "")
-                        if not text:
-                            continue
-                        if article is None and any(
-                            token in lowered for token in ("article", "артикул", "art", "sku")
-                        ):
-                            article = text
-                        if model is None and ("model" in lowered or "модель" in lowered):
-                            model = text
-                    key_source = article or model
-                    if not key_source:
-                        continue
-                    lines.append(
-                        {
-                            "row_index": row_idx,
-                            "sheet_name": f"page_{page_idx + 1}_table_{table_idx + 1}",
-                            "article": article,
-                            "model": model,
-                            "normalized_article": normalize_article(key_source),
-                            "raw": raw,
-                        }
+                lines.extend(
+                    lines_from_matrix(
+                        table,
+                        sheet_name=f"page_{page_idx + 1}_table_{table_idx + 1}",
                     )
+                )
     text = "\n".join(text_parts)
-    if not lines and text.strip():
-        warnings.append("pdf_has_text_but_no_article_table")
+    priced = lines_from_qty_price_text(text, sheet_name="pdf_qty_price")
+    if not lines:
+        lines = priced or lines_from_plaintext(text, sheet_name="pdf_text")
+        if not lines:
+            warnings.append("pdf_has_text_but_no_article_table")
+    elif priced:
+        lines = lines + priced
     return text, lines, warnings
 
 
 def read_pdf(path: str, *, allow_ocr: bool = True) -> dict[str, Any]:
-    text, lines, warnings = _extract_searchable_pdf(path)
+    try:
+        text, lines, warnings = _extract_searchable_pdf(path)
+    except Exception as exc:
+        return {
+            "text": "",
+            "lines": [],
+            "warnings": [f"pdf_read_failed:{exc}"],
+            "ocr_used": False,
+            "ocr_confidence": None,
+        }
     ocr_used = False
     ocr_confidence: float | None = None
 
@@ -84,7 +90,9 @@ def read_pdf(path: str, *, allow_ocr: bool = True) -> dict[str, Any]:
             ocr_used = True
             text = (text + "\n" + ocr_text).strip()
             if not lines:
-                warnings.append("ocr_text_extracted_tables_not_detected")
+                lines = lines_from_plaintext(ocr_text, sheet_name="ocr")
+                if not lines:
+                    warnings.append("ocr_text_extracted_tables_not_detected")
         except Exception as exc:  # OCR is optional at this stage
             warnings.append(f"ocr_failed:{exc}")
 

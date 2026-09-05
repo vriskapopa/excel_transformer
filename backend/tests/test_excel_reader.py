@@ -42,3 +42,43 @@ def test_parse_file_classifies_invoice_excel(tmp_path: Path) -> None:
     assert document.doc_type is not None
     assert document.doc_type.value == "INVOICE"
     assert document.lines[0].normalized_article == "ABC-9"
+
+
+def test_parse_nameless_excel_keeps_prices(tmp_path: Path) -> None:
+    from app.services.reconcile import items_to_dicts, reconcile_documents
+
+    path = tmp_path / "goods.xlsx"
+    book = Workbook()
+    sheet = book.active
+    sheet.append(["MD 812", 200, 0.0592, 11.84])
+    sheet.append(["AB-90", 10, 12.5, 125])
+    book.save(path)
+
+    document = parse_file(str(path), allow_ocr=False)
+    assert document.doc_type.value == "INVOICE"
+    items = items_to_dicts(reconcile_documents([document]))
+    by_article = {item["article"]: item for item in items}
+    assert by_article["MD 812"]["commercial_data"]["price"] == 0.0592
+    assert by_article["AB-90"]["commercial_data"]["qty"] == 10
+
+
+def test_parse_file_reads_every_sheet(tmp_path: Path) -> None:
+    path = tmp_path / "two_sheets.xlsx"
+    book = Workbook()
+    first = book.active
+    first.title = "cover"
+    first.append(["Supplier", "Tosun"])
+    second = book.create_sheet("спец")
+    second.append(["Articul/Артикул", "Qty", "Price"])
+    second.append(["ZIMMY 162", 10, 5.78])
+    third = book.create_sheet("описание")
+    third.append(["Articul/Артикул", "Qty", "Price"])
+    third.append(["SINDRI 162", 4, 6.17])
+    book.save(path)
+
+    document = parse_file(str(path), allow_ocr=False)
+    articles = {line.article for line in document.lines}
+    assert "ZIMMY 162" in articles
+    assert "SINDRI 162" in articles
+
+
